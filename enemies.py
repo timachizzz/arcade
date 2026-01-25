@@ -78,6 +78,7 @@ class Rocket(Enemy):
             self.direction[1] = -1 # вниз
             self.update_rotation()
 
+
 def get_enemies():
     """Возвращает список всех противников (для появления на игровом поле)"""
     return Enemy.__subclasses__()
