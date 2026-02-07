@@ -1,6 +1,7 @@
 from random import choice, randint
+from math import sin, cos, radians
 import arcade
-from math import cos, sin, radians
+
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
