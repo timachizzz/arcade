@@ -1,5 +1,4 @@
 import math
-from random import randint
 from arcade import check_for_collision_with_list
 from enemies import *
 
@@ -73,11 +72,12 @@ class GameView(arcade.View):
                          arcade.color.GRAY, 20)
 
     def on_update(self, delta_time):
+
         if self.player.change_x != 0 or self.player.change_y != 0:
             self.player.angle = math.degrees(math.atan2(self.player.change_x, self.player.change_y))
 
         for enemy in self.enemies_list:
-            enemy.move(delta_time)
+            enemy.move(delta_time, self.player.center_x, self.player.center_y, self.bullet_list)
             if check_for_collision_with_list(enemy, self.bullet_list):
                 collided_bullets = check_for_collision_with_list(enemy, self.bullet_list)
                 if collided_bullets:
@@ -146,7 +146,6 @@ class GameView(arcade.View):
         elif key == arcade.key.D:
             self.move[0] -= self.player_speed
         self.fire.discard(key)
-
 
 if __name__ == '__main__':
     from main_menu import MainMenuView
