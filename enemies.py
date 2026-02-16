@@ -64,6 +64,7 @@ class Square(Enemy):
         super().__init__('pic/square.png')
         self.direction, self.act = choice(['center_x', 'center_y']), choice(['-=', '+='])
         self.speed = 300
+        self.score_per_kill = 5
         self.i = 0
 
     def move(self, delta_time, x, y, bullet):
@@ -86,6 +87,7 @@ class Pinwheel(Enemy):
         self.move_angle = randint(0, 360)
         self.rotation_angle = 0
         self.rotation_speed = 200
+        self.score_per_kill = 5
         self.original_image = self.image.copy()
         self.center_x = randint(80, SCREEN_WIDTH - 60)
         self.center_y = randint(80, SCREEN_HEIGHT - 60)
@@ -118,6 +120,7 @@ class Rocket(Enemy):
         self.scale = 1.2
         self.speed = 300
         self.angle = 0
+        self.score_per_kill = 10
         self.original_image = self.image.copy()
         self.center_x = randint(50, SCREEN_WIDTH - 50)
         self.center_y = randint(50, SCREEN_HEIGHT - 50)
@@ -165,6 +168,7 @@ class Rhombus(Enemy):
         self.image = arcade.load_image('pic/Romb.png')
         self.scale = 1.0
         self.speed = 200
+        self.score_per_kill = 15
         self.center_x = randint(80, SCREEN_WIDTH - 60)
         self.center_y = randint(80, SCREEN_HEIGHT - 60)
 
@@ -189,6 +193,7 @@ class DodgingRhombus(DodgingEnemy):
         self.speed = 250
         self.detection_area = 200
         self.dodge_speed = 375
+        self.score_per_kill = 20
         self.center_x = randint(50, SCREEN_WIDTH - 50)
         self.center_y = randint(50, SCREEN_HEIGHT - 50)
         self.normal_move_timer = 0

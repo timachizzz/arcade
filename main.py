@@ -1,6 +1,11 @@
 import math
+
+import arcade.color
 from arcade import check_for_collision_with_list
+from pyglet.graphics import Batch
+
 from enemies import *
+
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
@@ -13,17 +18,22 @@ class GameView(arcade.View):
         super().__init__()
         self.player = None
         self.player_speed = 10
+        self.bombs = 0
+        self.activated_bombs = []
         self.sprite_list = None
         self.bullet_list = None
         self.enemies_list = None
         self.physics_engine = None
+        self.batch = Batch()
+        self.score = None
         self.move = [0, 0]  # Движение игрока по оси x, y (скорость)
         self.fire = set()  # Список нажатых стрелочек, для ориентации пуль
-        self.bullet_delay = 0.30  # Задержка выстрела пуль при зажатой кнопке
-        self.bullet_speed = 25
+        self.bullet_delay = 0.15  # Задержка выстрела пуль при зажатой кнопке
+        self.bullet_speed = 30
         self.last_bullet_fired = 0  # Время прошедшее с последнего выстрела
         self.bg = arcade.Sprite('pic/background.png')
         self.bg_lst = arcade.SpriteList()
+        self.score_text, self.bombs_text = None, None
 
     def setup(self):
         """Инициализация игровых объектов"""
@@ -35,6 +45,9 @@ class GameView(arcade.View):
         self.sprite_list = arcade.SpriteList()
         self.bullet_list = arcade.SpriteList()
         self.enemies_list = arcade.SpriteList()
+        self.score = 0
+        self.bombs = 3
+        self.activated_bombs = []
 
         self.player = arcade.Sprite("pic/game_player.png", scale=1)
         self.player.center_x = SCREEN_WIDTH // 2
@@ -43,7 +56,7 @@ class GameView(arcade.View):
 
         self.enemies_generate()
 
-        self.physics_engine = arcade.PhysicsEngineSimple(self.player, self.enemies_list)
+        self.physics_engine = arcade.PhysicsEngineSimple(self.player, None)
         self.move = [0, 0]
         self.fire = set()
         self.last_bullet_fired = 0
@@ -63,16 +76,11 @@ class GameView(arcade.View):
         self.sprite_list.draw()
         self.bullet_list.draw()
         self.enemies_list.draw()
-        arcade.draw_text(f"Врагов осталось: {len(self.enemies_list)}",
-                         10, SCREEN_HEIGHT - 30,
-                         arcade.color.WHITE, 20)
-
-        arcade.draw_text("ESC - Главное меню",
-                         SCREEN_WIDTH - 400, SCREEN_HEIGHT - 30,
-                         arcade.color.GRAY, 20)
+        self.batch.draw()
+        for x, y, radius in self.activated_bombs:
+            arcade.draw_circle_outline(x, y, radius, arcade.color.WHITE, 10)
 
     def on_update(self, delta_time):
-
         if self.player.change_x != 0 or self.player.change_y != 0:
             self.player.angle = math.degrees(math.atan2(self.player.change_x, self.player.change_y))
 
@@ -83,6 +91,13 @@ class GameView(arcade.View):
                 if collided_bullets:
                     collided_bullets[0].remove_from_sprite_lists()
                 enemy.remove_from_sprite_lists()
+                self.score += enemy.score_per_kill
+                arcade.play_sound(arcade.load_sound("sfx/enemy_explode.wav"))
+            for x, y, radius in self.activated_bombs:
+                distance = math.sqrt((enemy.center_x - x) ** 2 + (enemy.center_y -y) ** 2)
+                if abs(distance - radius) <= 10 * 3:
+                    enemy.remove_from_sprite_lists()
+                    self.score += enemy.score_per_kill
 
         for bullet in self.bullet_list:
             bullet.center_x += bullet.change_x
@@ -90,8 +105,13 @@ class GameView(arcade.View):
             if (bullet.bottom > SCREEN_HEIGHT or bullet.top < 0 or
                     bullet.right < 0 or bullet.left > SCREEN_WIDTH):
                 bullet.remove_from_sprite_lists()
+                arcade.play_sound(arcade.load_sound("sfx/bullet_hitwall.wav"))
 
         self.player.change_x, self.player.change_y = self.move[0], self.move[1]
+
+        for i in range(len(self.activated_bombs)):
+            self.activated_bombs[i][-1] += 2000 * delta_time
+        self.activated_bombs = list(filter(lambda lst: lst[-1] <= self.width * 1.4142, self.activated_bombs))
 
         if self.fire and self.last_bullet_fired >= self.bullet_delay:
             bullet = arcade.Sprite(':resources:images/space_shooter/meteorGrey_small1.png', 0.5)
@@ -108,17 +128,46 @@ class GameView(arcade.View):
                     bullet.change_x = self.bullet_speed
             self.bullet_list.append(bullet)
             self.last_bullet_fired = 0
+            # arcade.play_sound(arcade.load_sound("sfx/fire.wav"), volume=0.2)
 
         if not self.enemies_list:
             self.enemies_generate()
 
         self.last_bullet_fired += delta_time
         self.physics_engine.update()
+        self.check_for_out_of_screen(self.player)
+
+        self.score_text = arcade.Text(
+            f"Очков: {self.score}",
+            20,
+            self.height - 40,
+            arcade.color.WHITE,
+            32,
+            batch=self.batch
+        )
+
+        self.bombs_text = arcade.Text(
+            f"Бомб (Q): {self.bombs}",
+            20,
+            self.height - 100,
+            arcade.color.GRAY,
+            32,
+            batch=self.batch
+        )
 
         if check_for_collision_with_list(self.player, self.enemies_list):
             from main_menu import MainMenuView
-            menu_view = MainMenuView()
-            self.window.show_view(menu_view)
+            self.window.show_view(MainMenuView())
+
+    def check_for_out_of_screen(self, sprite: arcade.Sprite):
+        if sprite.left < 0:
+            sprite.left = 0
+        elif sprite.right > self.width:
+            sprite.right = self.width
+        if sprite.bottom < 0:
+            sprite.bottom = 0
+        elif sprite.top > self.height:
+            sprite.top = self.height
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.W:
@@ -131,10 +180,14 @@ class GameView(arcade.View):
             self.move[0] += self.player_speed
         elif key in [arcade.key.UP, arcade.key.DOWN, arcade.key.LEFT, arcade.key.RIGHT]:
             self.fire.add(key)
+        elif key == arcade.key.Q:
+            if self.bombs:
+                self.activated_bombs.append([self.player.center_x, self.player.center_y, 0])
+                self.bombs -= 1
+                arcade.play_sound(arcade.load_sound("sfx/bomb.wav"))
         elif key == arcade.key.ESCAPE:
             from main_menu import MainMenuView
-            menu_view = MainMenuView()
-            self.window.show_view(menu_view)
+            self.window.show_view(MainMenuView())
 
     def on_key_release(self, key, modifiers):
         if key == arcade.key.W:
