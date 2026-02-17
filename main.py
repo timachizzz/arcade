@@ -5,10 +5,10 @@ from arcade import check_for_collision_with_list
 from pyglet.graphics import Batch
 
 from enemies import *
+from boosts import *
 
 
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
 
 
 class GameView(arcade.View):
@@ -29,11 +29,13 @@ class GameView(arcade.View):
         self.move = [0, 0]  # Движение игрока по оси x, y (скорость)
         self.fire = set()  # Список нажатых стрелочек, для ориентации пуль
         self.bullet_delay = 0.15  # Задержка выстрела пуль при зажатой кнопке
-        self.bullet_speed = 30
+        self.bullet_speed = 35
+        self.score_multiplier = 1
+        self.doublers_list = arcade.SpriteList()
         self.last_bullet_fired = 0  # Время прошедшее с последнего выстрела
         self.bg = arcade.Sprite('pic/background.png')
         self.bg_lst = arcade.SpriteList()
-        self.score_text, self.bombs_text = None, None
+        self.score_text, self.bombs_text, self.doubler_text = None, None, None
 
     def setup(self):
         """Инициализация игровых объектов"""
@@ -47,9 +49,11 @@ class GameView(arcade.View):
         self.enemies_list = arcade.SpriteList()
         self.score = 0
         self.bombs = 3
+        self.score_multiplier = 1
         self.activated_bombs = []
+        self.doublers_list = arcade.SpriteList()
 
-        self.player = arcade.Sprite("pic/game_player.png", scale=1)
+        self.player = arcade.Sprite("pic/game_player.png", scale=0.9)
         self.player.center_x = SCREEN_WIDTH // 2
         self.player.center_y = SCREEN_HEIGHT // 2
         self.sprite_list.append(self.player)
@@ -77,6 +81,7 @@ class GameView(arcade.View):
         self.bullet_list.draw()
         self.enemies_list.draw()
         self.batch.draw()
+        self.doublers_list.draw()
         for x, y, radius in self.activated_bombs:
             arcade.draw_circle_outline(x, y, radius, arcade.color.WHITE, 10)
 
@@ -91,13 +96,23 @@ class GameView(arcade.View):
                 if collided_bullets:
                     collided_bullets[0].remove_from_sprite_lists()
                 enemy.remove_from_sprite_lists()
-                self.score += enemy.score_per_kill
+                self.doublers_appear(enemy)
+                self.score += enemy.score_per_kill * self.score_multiplier
                 arcade.play_sound(arcade.load_sound("sfx/enemy_explode.wav"))
             for x, y, radius in self.activated_bombs:
                 distance = math.sqrt((enemy.center_x - x) ** 2 + (enemy.center_y -y) ** 2)
                 if abs(distance - radius) <= 10 * 3:
                     enemy.remove_from_sprite_lists()
-                    self.score += enemy.score_per_kill
+                    self.score += enemy.score_per_kill * self.score_multiplier
+                    self.doublers_appear(enemy)
+
+        for doubler in self.doublers_list:
+            doubler.move(delta_time)
+        if check_for_collision_with_list(self.player, self.doublers_list):
+            picked_doublers = check_for_collision_with_list(self.player, self.doublers_list)
+            self.score_multiplier += len(picked_doublers)
+            for doubler in picked_doublers:
+                doubler.remove_from_sprite_lists()
 
         for bullet in self.bullet_list:
             bullet.center_x += bullet.change_x
@@ -114,7 +129,7 @@ class GameView(arcade.View):
         self.activated_bombs = list(filter(lambda lst: lst[-1] <= self.width * 1.4142, self.activated_bombs))
 
         if self.fire and self.last_bullet_fired >= self.bullet_delay:
-            bullet = arcade.Sprite(':resources:images/space_shooter/meteorGrey_small1.png', 0.5)
+            bullet = arcade.Sprite('pic/bullet.png', 0.4)
             bullet.center_x = self.player.center_x
             bullet.center_y = self.player.center_y
             for key in self.fire:
@@ -126,9 +141,10 @@ class GameView(arcade.View):
                     bullet.change_x = -self.bullet_speed
                 elif key == arcade.key.RIGHT:
                     bullet.change_x = self.bullet_speed
+            bullet.angle = math.degrees(math.atan2(bullet.change_x, bullet.change_y))
             self.bullet_list.append(bullet)
             self.last_bullet_fired = 0
-            # arcade.play_sound(arcade.load_sound("sfx/fire.wav"), volume=0.2)
+            arcade.play_sound(arcade.load_sound("sfx/fire.wav"), volume=0.2)
 
         if not self.enemies_list:
             self.enemies_generate()
@@ -138,10 +154,21 @@ class GameView(arcade.View):
         self.check_for_out_of_screen(self.player)
 
         self.score_text = arcade.Text(
-            f"Очков: {self.score}",
+            f"Счёт:\n{self.score}",
             20,
-            self.height - 40,
+            self.height - 60,
             arcade.color.WHITE,
+            40,
+            batch=self.batch,
+            multiline=True,
+            width=1
+        )
+
+        self.doubler_text = arcade.Text(
+            f"x{self.score_multiplier}",
+            self.width // 2,
+            self.height - 50,
+            arcade.color.GRAY,
             32,
             batch=self.batch
         )
@@ -149,7 +176,7 @@ class GameView(arcade.View):
         self.bombs_text = arcade.Text(
             f"Бомб (Q): {self.bombs}",
             20,
-            self.height - 100,
+            self.height - 200,
             arcade.color.GRAY,
             32,
             batch=self.batch
@@ -168,6 +195,13 @@ class GameView(arcade.View):
             sprite.bottom = 0
         elif sprite.top > self.height:
             sprite.top = self.height
+
+    def doublers_appear(self, enemy):
+        for i in range(enemy.doublers_per_kill):
+            doubler = Doubler()
+            doubler.center_x = enemy.center_x
+            doubler.center_y = enemy.center_y
+            self.doublers_list.append(doubler)
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.W:
@@ -200,10 +234,11 @@ class GameView(arcade.View):
             self.move[0] -= self.player_speed
         self.fire.discard(key)
 
+
 if __name__ == '__main__':
     from main_menu import MainMenuView
 
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Geometry Wars", fullscreen=False)
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, "Geometry Wars", fullscreen=True)
     menu_view = MainMenuView()
     window.show_view(menu_view)
     arcade.run()

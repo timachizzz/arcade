@@ -1,7 +1,7 @@
 import arcade
 
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+
+SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
 
 
 class MainMenuView(arcade.View):

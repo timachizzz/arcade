@@ -54,7 +54,7 @@
 ## Вооружение
 У игрока есть 2 способа устранить противников:
 
-![iplan-icon](pic/bullet.jpg 'Пули')
+![iplan-icon](pic/bullet.png 'Пули')
 ![iplan-icon](pic/bomb.jpg 'Бомба')
 
 ### Пули
