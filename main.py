@@ -1,9 +1,10 @@
 import math
+import time
 
 import arcade.color
 from arcade import check_for_collision_with_list
 from pyglet.graphics import Batch
-
+from Gates import *
 from enemies import *
 from boosts import *
 
@@ -36,6 +37,10 @@ class GameView(arcade.View):
         self.bg = arcade.Sprite('pic/background.png')
         self.bg_lst = arcade.SpriteList()
         self.score_text, self.bombs_text, self.doubler_text = None, None, None
+        self.gates = arcade.SpriteList()
+        self.death_triangles = arcade.SpriteList()
+        self.gate_activation_time = 0
+        self.gate_respawn_timer = 0
 
     def setup(self):
         """Инициализация игровых объектов"""
@@ -52,6 +57,9 @@ class GameView(arcade.View):
         self.score_multiplier = 1
         self.activated_bombs = []
         self.doublers_list = arcade.SpriteList()
+        self.gates = arcade.SpriteList()
+        self.death_triangles = arcade.SpriteList()
+        self.create_gate()
 
         self.player = arcade.Sprite("pic/game_player.png", scale=0.9)
         self.player.center_x = SCREEN_WIDTH // 2
@@ -70,9 +78,66 @@ class GameView(arcade.View):
         for _ in range(n):
             enemy_class = choice(get_enemies())
             enemy = enemy_class()
-            enemy.center_x = randint(100, SCREEN_WIDTH - 100)
-            enemy.center_y = randint(100, SCREEN_HEIGHT - 100)
+            x_or_y = choice(['x', 'y'])
+            if x_or_y == 'x':
+                left_or_right = choice(['left', 'right'])
+                if left_or_right == 'left':
+                    enemy.position = (randint(50, 200), randint(30, SCREEN_HEIGHT - 50))
+                else:
+                    enemy.position = (randint(SCREEN_WIDTH - 200, SCREEN_WIDTH - 50), randint(30, SCREEN_HEIGHT - 50))
+            else:
+                up_or_down = choice(['up', 'down'])
+                if up_or_down == 'up':
+
+                    enemy.position = (randint(50, SCREEN_WIDTH - 50), randint(SCREEN_HEIGHT - 200, SCREEN_HEIGHT - 50))
+                else:
+                    enemy.position = (randint(50, SCREEN_WIDTH - 50), randint(30, 200))
+
             self.enemies_list.append(enemy)
+
+    def create_gate(self):
+        """Создает новые ворота"""
+        gate = Gate()
+        self.gates.append(gate)
+
+        top_triangle = DeathTriangle()
+        bottom_triangle = DeathTriangle()
+        self.death_triangles.append(top_triangle)
+        self.death_triangles.append(bottom_triangle)
+
+        self.update_triangle_positions()
+
+    def update_triangle_positions(self):
+        """Обновляет позиции треугольников относительно ворот"""
+        if not self.gates or len(self.death_triangles) < 2:
+            return
+
+        gate = self.gates[0]
+        triangle_width = self.death_triangles[0].width
+        triangle_height = self.death_triangles[0].height
+
+        top_pos, bottom_pos = gate.get_triangle_positions(triangle_width, triangle_height)
+
+        self.death_triangles[0].update_position(top_pos[0], top_pos[1])
+        self.death_triangles[1].update_position(bottom_pos[0], bottom_pos[1])
+
+    def kill_enemies_in_radius(self, gate):
+        """Убивает врагов в радиусе от ворот"""
+        enemies_to_remove = []
+
+        for enemy in self.enemies_list:
+            distance = math.sqrt(
+                (enemy.center_x - gate.center_x) ** 2 +
+                (enemy.center_y - gate.center_y) ** 2
+            )
+
+            if distance <= gate.purify_area_radius:
+                enemies_to_remove.append(enemy)
+                self.score += enemy.score_per_kill * self.score_multiplier
+                self.doublers_appear(enemy)
+
+        for enemy in enemies_to_remove:
+            enemy.remove_from_sprite_lists()
 
     def on_draw(self):
         self.clear()
@@ -82,12 +147,46 @@ class GameView(arcade.View):
         self.enemies_list.draw()
         self.batch.draw()
         self.doublers_list.draw()
+        self.gates.draw()
+        self.death_triangles.draw()
+
         for x, y, radius in self.activated_bombs:
             arcade.draw_circle_outline(x, y, radius, arcade.color.WHITE, 10)
 
     def on_update(self, delta_time):
+        current_time = time.time()
         if self.player.change_x != 0 or self.player.change_y != 0:
             self.player.angle = math.degrees(math.atan2(self.player.change_x, self.player.change_y))
+
+        for gate in self.gates:
+            gate.move(delta_time)
+
+        self.update_triangle_positions()
+
+        if check_for_collision_with_list(self.player, self.death_triangles):
+            from main_menu import MainMenuView
+            self.window.show_view(MainMenuView())
+
+        gates_to_remove = []
+        for gate in self.gates:
+            if arcade.check_for_collision(self.player, gate):
+                self.kill_enemies_in_radius(gate)
+                gates_to_remove.append(gate)
+                arcade.play_sound(arcade.load_sound("sfx/enemy_explode.wav"))
+
+        for gate in gates_to_remove:
+            gate.remove_from_sprite_lists()
+            while len(self.death_triangles) > 0:
+                self.death_triangles[0].remove_from_sprite_lists()
+
+        if len(self.gates) == 0 and not hasattr(self, 'gate_respawn_timer'):
+            self.gate_respawn_timer = 3.0
+
+        if hasattr(self, 'gate_respawn_timer'):
+            self.gate_respawn_timer -= delta_time
+            if self.gate_respawn_timer <= 0:
+                self.create_gate()
+                delattr(self, 'gate_respawn_timer')
 
         for enemy in self.enemies_list:
             enemy.move(delta_time, self.player.center_x, self.player.center_y, self.bullet_list)
