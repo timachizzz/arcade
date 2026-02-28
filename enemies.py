@@ -5,11 +5,29 @@ from arcade import SpriteList
 
 
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
+GLITCHING_TIME = 0.06  # Период смены текстур при появлении врага
+BLINKING_TIMES = 11
 
 
 class Enemy(arcade.Sprite):
     def __init__(self, texture):
         super().__init__(texture)
+        self.textures = [self.texture, arcade.load_texture('pic/empty.png')]
+        self.normal_texture = self.texture
+        self.is_blinking = True
+        self.lifetime = 0
+        self.blinking_times = BLINKING_TIMES
+        self.glitching_time = GLITCHING_TIME
+
+    def _update(self, delta_time):
+        self.lifetime += delta_time
+        if self.lifetime >= self.glitching_time and self.is_blinking:
+            if self.blinking_times:
+                self.blinking_times -= 1
+                self.lifetime = 0
+                self.texture = self.textures[self.blinking_times % 2]
+            else:
+                self.is_blinking = False
 
 
 class DodgingEnemy(arcade.Sprite):
@@ -21,6 +39,23 @@ class DodgingEnemy(arcade.Sprite):
         self.bullet_list : list
         self.dodge_direction : list = []
         self.normal_move_timer = 0
+
+        self.textures = [self.texture, arcade.load_texture('pic/empty.png')]
+        self.normal_texture = self.texture
+        self.is_blinking = True
+        self.lifetime = 0
+        self.blinking_times = BLINKING_TIMES
+        self.glitching_time = GLITCHING_TIME
+
+    def _update(self, delta_time):
+        self.lifetime += delta_time
+        if self.lifetime >= self.glitching_time and self.is_blinking:
+            if self.blinking_times:
+                self.blinking_times -= 1
+                self.lifetime = 0
+                self.texture = self.textures[self.blinking_times % 2]
+            else:
+                self.is_blinking = False
 
     def check_for_bullets(self, bullet_list : SpriteList, delta_time):
         nearby_bullets : list = []

@@ -5,6 +5,9 @@ from math import sin, cos, radians
 from random import randint
 
 
+GLITCHING_TIME = 0.055  # Период смены текстур при пропадании
+
+
 class Doubler(arcade.Sprite):
     def __init__(self):
         super().__init__('pic/doubler.png')
@@ -17,6 +20,12 @@ class Doubler(arcade.Sprite):
         self.original_image = self.image.copy()
         self.center_x = randint(80, SCREEN_WIDTH - 60)
         self.center_y = randint(80, SCREEN_HEIGHT - 60)
+        self.lifetime = 5
+
+        self.delay = 0
+        self.i = 0
+        self.textures = [self.texture, arcade.load_texture('pic/empty.png')]
+        self.normal_texture = self.texture
 
     def move(self, delta_time):
         self.rotation_angle += self.rotation_speed * delta_time
@@ -25,16 +34,23 @@ class Doubler(arcade.Sprite):
         self.center_x += self.speed * cos(radians(self.move_angle)) * delta_time
         self.center_y += self.speed * sin(radians(self.move_angle)) * delta_time
 
-        if self.center_x < 50:
+        if self.left < 0:
             self.move_angle = 180 - self.move_angle
-
-        elif self.center_x > SCREEN_WIDTH - 50:
+        elif self.right > SCREEN_WIDTH - self.width:
             self.move_angle = 180 - self.move_angle
-
-        if self.center_y < 50:
+        if self.bottom < 0:
             self.move_angle = -self.move_angle
-
-        elif self.center_y > SCREEN_HEIGHT - 50:
+        elif self.top > SCREEN_HEIGHT - self.height:
             self.move_angle = -self.move_angle
-
         self.move_angle %= 360
+
+    def _update(self, delta_time):
+        self.lifetime -= delta_time
+        if 0 <= self.lifetime <= 2:
+            self.delay += delta_time
+            if self.delay >= GLITCHING_TIME:
+                self.delay = 0
+                self.i += 1
+                self.texture = self.textures[self.i % 2]
+        elif self.lifetime < 0:
+            self.remove_from_sprite_lists()
