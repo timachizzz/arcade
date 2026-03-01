@@ -11,6 +11,7 @@ from loaded_music import *
 
 
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
+CAMERA_SMOOTHNESS = 0.15
 
 
 class Evolved(arcade.View):
@@ -43,6 +44,7 @@ class Evolved(arcade.View):
         self.bg = arcade.Sprite('pic/background.png')
         self.bg_lst = arcade.SpriteList()
         self.score_text, self.bombs_text, self.doubler_text = None, None, None
+        self.score_value, self.highscore_text, self.highscore_value = None, None, None
         self.music = None
         self.points_to_achieve_bomb = 0
 
@@ -53,6 +55,9 @@ class Evolved(arcade.View):
         self.life_texture = arcade.load_texture('pic/game_player.png')
         self.life_texture.width *= 0.4
         self.life_texture.height *= 0.4
+
+        self.world_camera = arcade.camera.Camera2D()
+        self.gui_camera = arcade.camera.Camera2D()
 
     def setup(self):
         """Инициализация игровых объектов"""
@@ -128,18 +133,9 @@ class Evolved(arcade.View):
 
     def on_draw(self):
         self.clear()
-        self.bg_lst.draw()
 
-        self.sprite_list.draw()
-        self.bullet_list.draw()
-        self.non_touchable_enemies_list.draw()
-        self.enemies_list.draw()
-        self.batch.draw()
-        self.doublers_list.draw()
-        for e in self.emitters:
-            e.draw()
-        for x, y, radius in self.activated_bombs:
-            arcade.draw_circle_outline(x, y, radius, arcade.color.WHITE, 10)
+        self.gui_camera.use()
+        self.bg_lst.draw()
         for i in range(self.lives):
             arcade.draw_texture_rect(
                 self.life_texture,
@@ -152,6 +148,20 @@ class Evolved(arcade.View):
                 arcade.rect.XYWH(self.width // 2 + (i + 1.5) * self.bomb_texture.width, self.height * 0.95,
                                  self.bomb_texture.width, self.bomb_texture.height)
             )
+        self.batch.draw()
+
+        self.world_camera.use()
+        self.sprite_list.draw()
+        self.bullet_list.draw()
+        self.non_touchable_enemies_list.draw()
+        self.enemies_list.draw()
+        self.doublers_list.draw()
+        for e in self.emitters:
+            e.draw()
+        for x, y, radius in self.activated_bombs:
+            arcade.draw_circle_outline(x, y, radius, arcade.color.WHITE, 10)
+        arcade.draw_rect_outline(arcade.rect.XYWH(self.width // 2, self.height // 2, self.width, self.height),
+                                 arcade.color.WHITE, border_width=5)
 
     def on_update(self, delta_time):
         self.stopwatch += delta_time
@@ -169,6 +179,7 @@ class Evolved(arcade.View):
                 if self.lives:
                     self.reset()
                 else:
+                    self.gui_camera.use()
                     from main_menu import MainMenuView
                     self.window.show_view(MainMenuView())
             return
@@ -260,37 +271,51 @@ class Evolved(arcade.View):
         self.physics_engine.update()
         self.check_for_out_of_screen(self.player)
 
+        target_pos = (self.player.center_x, self.player.center_y)
+        self.world_camera.position = arcade.math.lerp_2d(
+            self.world_camera.position, target_pos, CAMERA_SMOOTHNESS
+        )
+
         self.highscore = max(self.highscore, self.score)
 
         self.score_text = arcade.Text(
-            f"Score:\n{self.score}",
-            self.width * 0.01,
-            self.height * 0.95,
+            f"Score:",
+            self.width * 0.01, self.height * 0.95,
             arcade.color.WHITE,
-            40,
-            batch=self.batch,
-            multiline=True,
-            width=1
+            40, align='left', anchor_x='left',
+            batch=self.batch
+        )
+
+        self.score_value = arcade.Text(
+            f"{self.score}",
+            self.width * 0.01, self.height * 0.9,
+            arcade.color.WHITE,
+            40, align='left', anchor_x='left',
+            batch=self.batch
         )
 
         self.doubler_text = arcade.Text(
             f"x{self.score_multiplier}",
-            self.width // 2,
-            self.height * 0.9,
+            self.width // 2, self.height * 0.9,
             arcade.color.WHITE,
             32,
             batch=self.batch
         )
 
         self.highscore_text = arcade.Text(
-            f"Highscore:\n{self.highscore}",
-            self.width * 0.85,
-            self.height * 0.95,
+            f"Highscore:",
+            self.width * 0.99, self.height * 0.95,
             arcade.color.WHITE,
-            40, align='right',
-            batch=self.batch,
-            multiline=True,
-            width=350
+            40, align='right', anchor_x='right',
+            batch=self.batch
+        )
+
+        self.highscore_value = arcade.Text(
+            f"{self.highscore}",
+            self.width * 0.99, self.height * 0.9,
+            arcade.color.WHITE,
+            40, align='right', anchor_x='right',
+            batch=self.batch
         )
 
         if enemy := check_for_collision_with_list(self.player, self.enemies_list):  # Game over
@@ -355,6 +380,7 @@ class Evolved(arcade.View):
                 arcade.play_sound(arcade.load_sound("sfx/bomb.wav"))
         elif key == arcade.key.ESCAPE:
             arcade.stop_sound(self.music)
+            self.gui_camera.use()
             from main_menu import MainMenuView
             self.window.show_view(MainMenuView())
 
