@@ -60,8 +60,8 @@ class MainMenuView(arcade.View):
         elif key == arcade.key.ENTER or key == arcade.key.SPACE:
             if self.selected_item == 0:
                 # Запуск игры
-                from main import GameView
-                game_view = GameView()
+                from main import Evolved
+                game_view = Evolved()
                 game_view.setup()
                 self.window.show_view(game_view)
             elif self.selected_item == 1:

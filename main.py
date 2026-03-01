@@ -13,7 +13,7 @@ from loaded_music import *
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
 
 
-class GameView(arcade.View):
+class Evolved(arcade.View):
     """Класс для представления игрового процесса"""
 
     def __init__(self):
@@ -30,6 +30,8 @@ class GameView(arcade.View):
         self.alive = True
         self.batch = Batch()
         self.score = None
+        self.highscore = None
+        self.file_scores = None
         self.move = [0, 0]  # Движение игрока по оси x, y (скорость)
         self.fire = set()  # Список нажатых стрелочек, для ориентации пуль
         self.bullet_delay = 0.15  # Задержка выстрела пуль при зажатой кнопке
@@ -88,6 +90,13 @@ class GameView(arcade.View):
         arcade.schedule(self.player_spawn_particles, 0.01)
         arcade.play_sound(arcade.load_sound('sfx/player_Spawn.wav'), 0.3)
         self.music = sequence.play(0.5, loop=True)
+
+        with open('highscores.txt') as highscores_file:
+            self.file_scores = highscores_file.read().split('\n')
+            for line in self.file_scores:
+                level, highscore = line.split(' - ')
+                if level == self.__class__.__name__:
+                    self.highscore = int(highscore)
 
     def reset(self):
         self.stopwatch = 0
@@ -251,8 +260,10 @@ class GameView(arcade.View):
         self.physics_engine.update()
         self.check_for_out_of_screen(self.player)
 
+        self.highscore = max(self.highscore, self.score)
+
         self.score_text = arcade.Text(
-            f"Счёт:\n{self.score}",
+            f"Score:\n{self.score}",
             self.width * 0.01,
             self.height * 0.95,
             arcade.color.WHITE,
@@ -269,6 +280,17 @@ class GameView(arcade.View):
             arcade.color.WHITE,
             32,
             batch=self.batch
+        )
+
+        self.highscore_text = arcade.Text(
+            f"Highscore:\n{self.highscore}",
+            self.width * 0.85,
+            self.height * 0.95,
+            arcade.color.WHITE,
+            40, align='right',
+            batch=self.batch,
+            multiline=True,
+            width=350
         )
 
         if enemy := check_for_collision_with_list(self.player, self.enemies_list):  # Game over
@@ -289,6 +311,12 @@ class GameView(arcade.View):
             if self.lives == 0:
                 enemy[0].blinking_times = 12
                 arcade.play_sound(arcade.load_sound('sfx/game_over.wav'))
+                with open('highscores.txt', 'w') as output_file:
+                    for i, line in enumerate(self.file_scores):
+                        level, score = line.split(' - ')
+                        if level == self.__class__.__name__:
+                            self.file_scores[i] = f'{level} - {self.highscore}'
+                    output_file.write('\n'.join(self.file_scores))
             arcade.unschedule(self.enemies_generate)
             self.alive = False
 
