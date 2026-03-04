@@ -1,5 +1,5 @@
 import math
-
+from GameOverScreen import  GameOverView
 import arcade.color
 from arcade import check_for_collision_with_list
 from pyglet.graphics import Batch
@@ -342,6 +342,11 @@ class Evolved(arcade.View):
                         if level == self.__class__.__name__:
                             self.file_scores[i] = f'{level} - {self.highscore}'
                     output_file.write('\n'.join(self.file_scores))
+
+                game_over_view = GameOverView(self.score, self.highscore, self.__class__.__name__)
+                self.window.show_view(game_over_view)
+                return
+
             arcade.unschedule(self.enemies_generate)
             self.alive = False
 
