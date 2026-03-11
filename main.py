@@ -180,8 +180,8 @@ class Evolved(arcade.View):
                     self.reset()
                 else:
                     self.gui_camera.use()
-                    from main_menu import MainMenuView
-                    self.window.show_view(MainMenuView())
+                    game_over_view = GameOverView(self.score, self.highscore, self.__class__.__name__)
+                    self.window.show_view(game_over_view)
             return
 
         if self.player.change_x != 0 or self.player.change_y != 0:  # Player correct angle view
@@ -342,10 +342,6 @@ class Evolved(arcade.View):
                         if level == self.__class__.__name__:
                             self.file_scores[i] = f'{level} - {self.highscore}'
                     output_file.write('\n'.join(self.file_scores))
-
-                game_over_view = GameOverView(self.score, self.highscore, self.__class__.__name__)
-                self.window.show_view(game_over_view)
-                return
 
             arcade.unschedule(self.enemies_generate)
             self.alive = False
