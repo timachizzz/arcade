@@ -1,13 +1,14 @@
 import math
-from GameOverScreen import  GameOverView
+
 import arcade.color
 from arcade import check_for_collision_with_list
 from pyglet.graphics import Batch
 
+import particles
 from enemies import *
 from boosts import *
-from particles import *
 from loaded_music import *
+from GameOverScreen import GameOverView
 
 
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
@@ -58,6 +59,7 @@ class Evolved(arcade.View):
 
         self.world_camera = arcade.camera.Camera2D()
         self.gui_camera = arcade.camera.Camera2D()
+        self.camera = True
 
     def setup(self):
         """Инициализация игровых объектов"""
@@ -83,7 +85,7 @@ class Evolved(arcade.View):
         self.player.center_y = SCREEN_HEIGHT // 2
         self.sprite_list.append(self.player)
 
-        self.emitters.append(player_appearance(self.player.center_x, self.player.center_y))
+        self.emitters.append(particles.player_appearance(self.player.center_x, self.player.center_y))
         self.physics_engine = arcade.PhysicsEngineSimple(self.player, None)
         self.move = [0, 0]
         self.fire = set()
@@ -116,7 +118,7 @@ class Evolved(arcade.View):
         if self.stopwatch > 0.15:
             self.player.texture = arcade.load_texture('pic/game_player.png')
         if self.stopwatch <= 0.3:
-            self.emitters.append(player_appearance(self.player.center_x, self.player.center_y))
+            self.emitters.append(particles.player_appearance(self.player.center_x, self.player.center_y))
         if not self.emitters:
             self.enemies_generate()
             arcade.unschedule(self.player_spawn_particles)
@@ -165,7 +167,7 @@ class Evolved(arcade.View):
 
     def on_update(self, delta_time):
         self.stopwatch += delta_time
-
+        particles.DELTA_TIME = delta_time
         emitters_copy = self.emitters.copy()  # Particles
         for e in emitters_copy:
             e.update(delta_time)
@@ -189,7 +191,7 @@ class Evolved(arcade.View):
 
         if self.score >= self.points_to_achieve_bomb:
             self.points_to_achieve_bomb *= 10
-            arcade.play_sound(arcade.load_sound('sfx/pickup_smartbomb.wav'))
+            bomb_pickup.play()
             self.bombs += 1
 
         swapped = False
@@ -202,7 +204,7 @@ class Evolved(arcade.View):
                 enemy.remove_from_sprite_lists()
                 self.enemies_list.append(enemy)
         if swapped:
-            arcade.play_sound(arcade.load_sound('sfx/shield_off.wav'))
+            shield_off.play()
 
         for enemy in self.enemies_list:  # Enemy and bullet, bomb check collision
             if not enemy.is_blinking:
@@ -214,8 +216,8 @@ class Evolved(arcade.View):
                 enemy.remove_from_sprite_lists()
                 self.doublers_appear(enemy)
                 self.score += enemy.score_per_kill * self.score_multiplier
-                arcade.play_sound(arcade.load_sound("sfx/enemy_explode.wav"))
-                self.emitters.append(make_explosion(enemy.center_x, enemy.center_y))
+                enemy_explode.play()
+                self.emitters.append(particles.make_explosion(enemy.center_x, enemy.center_y))
             for x, y, radius in self.activated_bombs:
                 distance = math.sqrt((enemy.center_x - x) ** 2 + (enemy.center_y -y) ** 2)
                 if abs(distance - radius) <= 10 * 3:
@@ -234,12 +236,11 @@ class Evolved(arcade.View):
                 doubler.remove_from_sprite_lists()
 
         for bullet in self.bullet_list:  # Bullets move
-            bullet.center_x += bullet.change_x
-            bullet.center_y += bullet.change_y
+            bullet.update(delta_time)
             if (bullet.bottom > SCREEN_HEIGHT or bullet.top < 0 or
                     bullet.right < 0 or bullet.left > SCREEN_WIDTH):
                 bullet.remove_from_sprite_lists()
-                arcade.play_sound(arcade.load_sound("sfx/bullet_hitwall.wav"))
+                bullet_hitwall.play()
 
         self.player.change_x, self.player.change_y = self.move[0], self.move[1]  # Player move
 
@@ -265,13 +266,17 @@ class Evolved(arcade.View):
                 bullet.angle = math.degrees(math.atan2(bullet.change_x, bullet.change_y))
             self.bullet_list.extend(bullets)
             self.last_bullet_fired = 0
-            arcade.play_sound(arcade.load_sound("sfx/fire.wav"), volume=0.2)
+            fire.play(volume=0.2)
 
         self.last_bullet_fired += delta_time
-        self.physics_engine.update()
+        self.player.update(delta_time)
+        # self.physics_engine.update()  # понадобится ли он? :(
         self.check_for_out_of_screen(self.player)
 
-        target_pos = (self.player.center_x, self.player.center_y)
+        if self.camera:
+            target_pos = (self.player.center_x, self.player.center_y)
+        else:
+            target_pos = (self.width // 2, self.height // 2)
         self.world_camera.position = arcade.math.lerp_2d(
             self.world_camera.position, target_pos, CAMERA_SMOOTHNESS
         )
@@ -326,16 +331,16 @@ class Evolved(arcade.View):
             self.enemies_list.append(enemy[0])
             arcade.stop_sound(self.music)
             self.player.texture = arcade.load_texture('pic/empty.png')
-            self.emitters.append(player_explosion(self.player.center_x, self.player.center_y))
+            self.emitters.append(particles.player_explosion(self.player.center_x, self.player.center_y))
             self.lives -= 1
 
             enemy[0].blinking_times = 6
             enemy[0].is_blinking = True
             enemy[0].glitching_time = 0.2
-            arcade.play_sound(arcade.load_sound('sfx/ship_explode.wav'))
+            ship_explode.play()
             if self.lives == 0:
                 enemy[0].blinking_times = 12
-                arcade.play_sound(arcade.load_sound('sfx/game_over.wav'))
+                game_over.play()
                 with open('highscores.txt', 'w') as output_file:
                     for i, line in enumerate(self.file_scores):
                         level, score = line.split(' - ')
@@ -378,7 +383,9 @@ class Evolved(arcade.View):
             if self.bombs and self.alive:
                 self.activated_bombs.append([self.player.center_x, self.player.center_y, 0])
                 self.bombs -= 1
-                arcade.play_sound(arcade.load_sound("sfx/bomb.wav"))
+                bomb_activated.play()
+        elif key == arcade.key.TAB:
+            self.camera = not self.camera  # По просьбе тестировщиков :)
         elif key == arcade.key.ESCAPE:
             arcade.stop_sound(self.music)
             self.gui_camera.use()

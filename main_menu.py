@@ -81,10 +81,14 @@ class SettingsView(arcade.View):
         super().__init__()
         self.main_menu = main_menu
         self.selected_setting = 0
-        self.fullscreen = False
+        self.fullscreen = self.window.fullscreen
+        self.fps = [30, 60, 120, 144, 165, 240]  # :)
+        self.current_fps = self.fps.index(int(self.window._update_rate ** -1))
         self.settings = [
             f"ПОЛНЫЙ ЭКРАН: {'ВКЛ' if self.fullscreen else 'ВЫКЛ'}",
-            "НАЗАД"
+            f"V-SYNC: {'ВКЛ' if self.window.vsync else 'ВЫКЛ'}",
+            f"ЧАСТОТА КАДРОВ: {self.fps[self.current_fps]}",
+            "НАЗАД",
         ]
 
     def on_draw(self):
@@ -99,8 +103,6 @@ class SettingsView(arcade.View):
                          anchor_x="center",
                          anchor_y="center",
                          bold=True)
-
-        self.settings[0] = f"ПОЛНЫЙ ЭКРАН: {'ВКЛ' if self.fullscreen else 'ВЫКЛ'}"
 
         for i, setting in enumerate(self.settings):
             color = arcade.color.GOLD if i == self.selected_setting else arcade.color.WHITE
@@ -123,9 +125,21 @@ class SettingsView(arcade.View):
             if self.selected_setting == 0:
                 self.fullscreen = not self.fullscreen
                 self.window.set_fullscreen(self.fullscreen)
+                self.settings[0] = f"ПОЛНЫЙ ЭКРАН: {'ВКЛ' if self.fullscreen else 'ВЫКЛ'}"
+            elif self.selected_setting == 1:
+                self.window.set_vsync(not self.window.vsync)
+                self.settings[1] = f"V-SYNC: {'ВКЛ' if self.window.vsync else 'ВЫКЛ'}"
+            elif self.selected_setting == 2:
+                if key == arcade.key.LEFT:
+                    self.current_fps = (self.current_fps - 1) % len(self.fps)
+                elif key == arcade.key.RIGHT:
+                    self.current_fps = (self.current_fps + 1) % len(self.fps)
+                fps = self.fps[self.current_fps]
+                self.settings[2] = f"ЧАСТОТА КАДРОВ: {fps}"
+                self.window.set_update_rate(1 / fps)
+                self.window.set_draw_rate(1 / fps)
         elif key == arcade.key.ENTER:
-            if self.selected_setting == 1:
+            if self.selected_setting == 3:
                 self.window.show_view(self.main_menu)
         elif key == arcade.key.ESCAPE:
             self.window.show_view(self.main_menu)
-

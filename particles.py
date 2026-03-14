@@ -2,6 +2,10 @@ import arcade
 
 from arcade.particles import FadeParticle, Emitter, EmitBurst
 from random import choice, uniform
+from math import exp
+
+
+DELTA_TIME = 1/60
 
 
 def player_appearance(x, y, count=200):
@@ -57,8 +61,8 @@ def make_explosion(x, y, count=80):
         ),
     )
 
-
-def gravity_drag(p):  # Для искр: чуть вниз и затухание скорости
-    p.change_y += -0.03
-    p.change_x *= 0.92
-    p.change_y *= 0.92
+def gravity_drag(p):
+    drag_factor = exp(-5.0 * DELTA_TIME)
+    p.change_y += -1.8 * DELTA_TIME
+    p.change_x *= drag_factor
+    p.change_y *= drag_factor
