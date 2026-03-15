@@ -28,7 +28,6 @@ class Evolved(arcade.View):
         self.bullet_list = None
         self.enemies_list = None
         self.non_touchable_enemies_list = None
-        self.physics_engine = None
         self.alive = True
         self.batch = Batch()
         self.score = None
@@ -86,7 +85,6 @@ class Evolved(arcade.View):
         self.sprite_list.append(self.player)
 
         self.emitters.append(particles.player_appearance(self.player.center_x, self.player.center_y))
-        self.physics_engine = arcade.PhysicsEngineSimple(self.player, None)
         self.move = [0, 0]
         self.fire = set()
         self.last_bullet_fired = 0
@@ -270,7 +268,6 @@ class Evolved(arcade.View):
 
         self.last_bullet_fired += delta_time
         self.player.update(delta_time)
-        # self.physics_engine.update()  # понадобится ли он? :(
         self.check_for_out_of_screen(self.player)
 
         if self.camera:

@@ -107,7 +107,16 @@ class Square(Enemy):
         if self.i > 60:
             self.direction, self.act = choice(['center_x', 'center_y']), choice(['-=', '+='])
             self.i = 0
-        exec(f'self.{self.direction} {self.act} {self.speed * delta_time}')
+        if self.direction == 'center_x':
+            if self.act == '-=':
+                self.center_x -= self.speed * delta_time
+            elif self.act == '+=':
+                self.center_x += self.speed * delta_time
+        elif self.direction == 'center_y':
+            if self.act == '-=':
+                self.center_y -= self.speed * delta_time
+            elif self.act == '+=':
+                self.center_y += self.speed * delta_time
         if self.left <= 0 or self.bottom <= 0:
             self.act = '+='
         elif self.right >= SCREEN_WIDTH or self.top >= SCREEN_HEIGHT:
