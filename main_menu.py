@@ -1,4 +1,5 @@
 import arcade
+from gamemode_selection import ModeSelectView
 
 
 SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
@@ -10,7 +11,7 @@ class MainMenuView(arcade.View):
     def __init__(self):
         super().__init__()
         self.background = None
-        self.menu_items = ["НАЧАТЬ ИГРУ", "НАСТРОЙКИ", "ВЫХОД"]
+        self.menu_items = ["НАЧАТЬ ИГРУ", "НАСТРОЙКИ", "ВЫХОД"]  # Первый пункт - начало игры
         self.selected_item = 0
         self.menu_font_size = 50
         self.title_font_size = 100
@@ -18,17 +19,12 @@ class MainMenuView(arcade.View):
 
     def on_show_view(self):
         self.background = arcade.Sprite("pic/background.png")
-        # Растягиваем фон на весь экран
         self.background.width = SCREEN_WIDTH
         self.background.height = SCREEN_HEIGHT
         self.background.center_x = SCREEN_WIDTH // 2
         self.background.center_y = SCREEN_HEIGHT // 2
         self.background_lst.append(self.background)
 
-        # Если текстура не найдена, создается простой фон
-        if not self.background.texture:
-            print("Фоновая текстура menu_background.png не найдена! Используется цветной фон.")
-            arcade.set_background_color(arcade.color.COOL_BLACK)
     def on_draw(self):
         self.clear()
         self.background_lst.draw()
@@ -59,17 +55,13 @@ class MainMenuView(arcade.View):
             self.selected_item = (self.selected_item + 1) % len(self.menu_items)
         elif key == arcade.key.ENTER or key == arcade.key.SPACE:
             if self.selected_item == 0:
-                # Запуск игры
-                from main import Evolved
-                game_view = Evolved()
-                game_view.setup()
-                self.window.show_view(game_view)
+                # Вместо прямого запуска игры - открываем экран выбора режима
+                mode_select_view = ModeSelectView(self)  # Передаем главное меню для возврата
+                self.window.show_view(mode_select_view)
             elif self.selected_item == 1:
-                # Переход к настройкам
                 settings_view = SettingsView(self)
                 self.window.show_view(settings_view)
             elif self.selected_item == 2:
-                # Выход из игры
                 arcade.close_window()
         elif key == arcade.key.ESCAPE:
             arcade.close_window()
