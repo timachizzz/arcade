@@ -6,7 +6,7 @@ SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_display_size()
 
 
 class GameOverView(arcade.View):
-    def __init__(self, score, highscore, level_name="Evolved"):
+    def __init__(self, score, highscore, level_name):
         super().__init__()
         self.score = score
         self.highscore = highscore
@@ -18,7 +18,6 @@ class GameOverView(arcade.View):
         self.color_cycle = 0
         self.gui_camera = None
         self.background = arcade.Sprite("pic/GameOver.png")
-
 
     def on_show_view(self):
         self.gui_camera = arcade.camera.Camera2D()
@@ -238,10 +237,16 @@ class GameOverView(arcade.View):
             self.selected_item = (self.selected_item + 1) % len(self.menu_items)
         elif key == arcade.key.ENTER or key == arcade.key.SPACE:
             if self.selected_item == 0:
-                from main import Evolved
-                game_view = Evolved()
-                game_view.setup()
-                self.window.show_view(game_view)
+                if self.level_name == 'Evolved':
+                    from main import Evolved
+                    game_view = Evolved()
+                    game_view.setup()
+                    self.window.show_view(game_view)
+                elif self.level_name == 'Deadline':
+                    from main import Deadline
+                    game_view = Deadline()
+                    game_view.setup()
+                    self.window.show_view(game_view)
             elif self.selected_item == 1:
                 self.window.show_view(MainMenuView())
         elif key == arcade.key.ESCAPE:

@@ -2,6 +2,7 @@ import arcade
 
 
 sequence = arcade.load_sound('sfx/sequence.mp3')  # level playing music
+deadline = arcade.load_sound('sfx/deadline.mp3')
 
 ship_explode = arcade.load_sound('sfx/ship_explode.wav')
 enemy_explode = arcade.load_sound("sfx/enemy_explode.wav")
